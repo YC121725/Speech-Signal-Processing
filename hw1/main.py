@@ -10,35 +10,38 @@ if __name__ =='__main__':
     '''
     fs, sig = readAudio('./PHONE_001.wav',5)
     plot_time(sig, fs,'原始信号')
+    plot_freq(sig, fs,'原始信号频域图')
     
     '''--------预处理--------'''
     '''(1)预加重'''
     alpha = 0.97
     sig = np.append(sig[0], sig[1:] - alpha * sig[:-1])
     plot_time(sig, fs,'预加重信号')
-    plot_freq(sig, fs) 
+    plot_freq(sig, fs,'预加重信号频域图') 
 
     '''(2)分帧'''
     frame_len_s = 0.025    #25ms
     frame_shift_s = 0.01   #10ms
     frame_sig = enframe(sig,frame_len_s, frame_shift_s, fs)
-    plot_time(frame_sig[1], fs,'加窗前第一帧时域图')
+    plot_time(frame_sig[0], fs,'加窗前第一帧时域图')
+    plot_freq(frame_sig[0], fs,'加窗前第一帧频域图')
     
     '''(3)加窗'''
     window = Window(frame_len_s,fs,'hamming')
     frame_sig_win = window * frame_sig
-    plot_time(frame_sig_win[1], fs,'加窗后第一帧时域图')
-
+    plot_time(frame_sig_win[0], fs,'加窗后第一帧时域图')
+    plot_freq(frame_sig_win[0], fs,'加窗后第一帧频域图')
 
     '''--------stft--------'''
     nfft = 512
-    frame_pow = stft(frame_sig, nfft ,fs)
-
+    frame_pow = stft(frame_sig_win, nfft ,fs)
+    plot_freq(frame_pow[0],fs,'第一帧STFT的频谱')
     '''--------Mel 滤波器组--------'''
     '''Filter Bank 特征和MFCC特征提取'''
-
-    n_filter = 16   # mel滤波器个数
-    filter_banks,mfcc = mel_filter(frame_pow, fs, n_filter, nfft,mfcc_Dimen=12,isshow_fig=False)
+    
+    n_filter = 15   # mel滤波器个数
+    filter_banks,mfcc = mel_filter(frame_pow, fs, n_filter, nfft,mfcc_Dimen=12,isshow_fig=True)
+    plot_freq(filter_banks[0],fs,'第一帧经过MFCC滤波器组频谱')
     plot_spectrogram(filter_banks,'Filter Banks','Filter Banks特征')
     # 去均值
     filter_banks -= (np.mean(filter_banks, axis=1)[:,np.newaxis] + np.finfo(float).eps)

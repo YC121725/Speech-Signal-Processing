@@ -115,7 +115,7 @@ def Window(frame_len_s,fs,Window_Type,isshow_fig=False):
 
 
 
-def stft(frame_sig, nfft=512 ,fs=8000,isshow_fig=False):
+def stft(frame_sig, nfft=512 ,fs=8000):
     """
     :param frame_sig: 分帧后的信号
     :param nfft: fft点数
@@ -132,16 +132,16 @@ def stft(frame_sig, nfft=512 ,fs=8000,isshow_fig=False):
     frame_mag = np.abs(frame_spec)
     # 功率谱
     frame_pow = (frame_mag ** 2) * 1.0 / nfft
-    if isshow_fig:
-        plt.figure(figsize=(10, 5))
-        plt.rcParams['font.sans-serif']=['SimHei']
-        plt.rcParams['axes.unicode_minus']=False
-        plt.plot(fhz,frame_pow[1])
-        plt.grid(True)
-        plt.xlabel('F/Hz')
-        plt.ylabel('功率谱')
-        plt.title('短时傅里叶变换')
-        plt.show()
+    # if isshow_fig:
+    #     plt.figure(figsize=(10, 5))
+    #     plt.rcParams['font.sans-serif']=['SimHei']
+    #     plt.rcParams['axes.unicode_minus']=False
+    #     plt.plot(fhz,frame_pow[0])
+    #     plt.grid(True)
+    #     plt.xlabel('F/Hz')
+    #     plt.ylabel('功率谱')
+    #     plt.title('短时傅里叶变换')
+    #     plt.show()
     return frame_pow
 
 
@@ -234,7 +234,7 @@ def plot_time(sig, fs,title):
     plt.grid()
     plt.show()
     
-def plot_freq(sig, sample_rate, nfft=512):
+def plot_freq(sig, sample_rate,title='频域图', nfft=512):
     xf = np.fft.rfft(sig, nfft)
     print('Number of fft:',(len(xf)-1)*2)     # 257个点
     xfp = -20 * np.log10(np.abs(xf))           # np.clip(np.abs(xf), 1e-20, 1e100)
@@ -243,7 +243,7 @@ def plot_freq(sig, sample_rate, nfft=512):
     plt.plot(freqs, xfp)
     plt.rcParams['font.sans-serif']=['SimHei']
     plt.rcParams['axes.unicode_minus']=False
-    plt.title('频域图')
+    plt.title(title)
     plt.xlabel('Freq(hz)')
     plt.ylabel('dB')
     plt.grid()

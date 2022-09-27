@@ -2,7 +2,7 @@ import numpy as np
 from scipy.io import wavfile
 from scipy.fftpack import dct
 import matplotlib.pyplot as plt
-
+from librosa import feature as lf
 
 '''-----------预处理-------------'''
 def readAudio(wav_file,iscut) :
@@ -145,8 +145,8 @@ def stft(frame_sig, nfft=512 ,fs=8000,isshow_fig=False):
     return frame_pow
 
 
-def mel_filter(frame_pow, fs, n_filter, nfft,isshow_fig = False):
-    """
+def mel_filter(frame_pow, fs, n_filter, nfft, mfcc_Dimen = 12,isshow_fig = False):
+    '''
     Parameter
     ------------
     mel 滤波器系数计算
@@ -157,11 +157,8 @@ def mel_filter(frame_pow, fs, n_filter, nfft,isshow_fig = False):
     
     return: 
     ------------
-    分帧信号功率谱mel滤波后的值的对数值
-    mel = 2595 * log10(1 + f/700)   # 频率到mel值映射
-    f = 700 * (10^(m/2595) - 1      # mel值到频率映射
-
-    """
+    Filter Bank 特征和Mel特征
+    '''
     mel_min = 0     # 最低mel值
     mel_max = 2595 * np.log10(1 + fs / 2.0 / 700)               # 最高mel值，最大信号频率为 fs/2
     mel_points = np.linspace(mel_min, mel_max, n_filter + 2)    # n_filter个mel值均匀分布与最低与最高mel值之间
@@ -192,14 +189,37 @@ def mel_filter(frame_pow, fs, n_filter, nfft,isshow_fig = False):
         plt.show()   
         
     # mel 滤波
-    
     filter_banks = np.dot(frame_pow, fbank.T)
     filter_banks = np.where(filter_banks == 0, np.finfo(float).eps, filter_banks)
     # 取对数
     filter_banks = 20 * np.log10(filter_banks)  # dB
+    # 求取MFCC特征
+    mfcc = dct(filter_banks, type=2,axis=1, norm='ortho')[:, 1:(mfcc_Dimen+1)]
+    return filter_banks.T,mfcc.T
 
-    return filter_banks
 
+def Dynamic_Feature(mfcc):
+    '''
+    动态特征提取
+    -----------
+    将MFCC进行一阶、二阶差分运算，构成动态特征
+    
+    Parameter
+    -----------
+    mfcc通常为[12,feature_num]的行向量
+    '''
+    delta_mfcc = lf.delta(mfcc,axis=1)
+    delta2_mfcc = lf.delta(mfcc,order=2,axis=1)
+    mfccs_feature = np.concatenate((mfcc,delta_mfcc,delta2_mfcc))
+    return mfccs_feature
+
+
+def CMVN(feature):
+    '''
+    倒谱均值方差归一化
+    ''' 
+    feat = (feature - np.mean(feature,axis=1)[:,np.newaxis])/(np.std(feature,axis=1)+np.finfo(float).eps)[:,np.newaxis]
+    return feat
 
 '''-----------绘图----------'''
 def plot_time(sig, fs,title):

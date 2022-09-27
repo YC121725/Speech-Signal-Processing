@@ -53,8 +53,3 @@ if __name__ =='__main__':
     feat = CMVN(mfccs_feature)
     print(feat.shape)
     plot_spectrogram(feat, 'MFCC系数','CMVN')
-    
-
-
-
-

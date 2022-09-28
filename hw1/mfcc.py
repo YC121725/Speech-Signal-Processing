@@ -2,15 +2,16 @@ import numpy as np
 from scipy.io import wavfile
 from scipy.fftpack import dct
 import matplotlib.pyplot as plt
-from librosa import feature as lf
+
+
 
 '''-----------预处理-------------'''
 def readAudio(wav_file,iscut) :
     '''    
-    预处理--读取音频
+    预处理——读取音频
     -----------------
-    wav_file:   音频名称
-    iscut：     如果需要截取音频输入时长，如果不需要截取音频，输入False
+    `wav_file`:   音频名称
+    `iscut`：     如果需要截取音频输入时长，如果不需要截取音频，输入False
 
     '''
     wav_file = './PHONE_001.wav'
@@ -25,15 +26,22 @@ def readAudio(wav_file,iscut) :
 '''-----------特征提取-------------'''
 def enframe(sig=np.array([]),frame_len_s=0.025, frame_shift_s=0.01, fs=8000):
     '''
-    分帧，主要是计算对应下标
+    分帧
     ----------------
-    sig:            信号
-    frame_len_s:    帧长，s 一般25ms
-    frame_shift_s:  帧移，s 一般10ms
-    fs:             采样率，hz
+    主要是计算对应下标,并重组
+    >>> enframe(sig,0.025,0.01,8000)
+    >>>     return frame_sig
+    
+    Parameters
+    ----------------
+    `sig`:            信号
+    `frame_len_s`:    帧长，s 一般25ms
+    `frame_shift_s`:  帧移，s 一般10ms
+    `fs`:             采样率，hz
 
-    return: 二维list，一个元素为一帧信号
+    return 
     ----------------
+    二维list，一个元素为一帧信号
     '''
     # np.round 四舍五入
     # np.ceil 向上取整
@@ -91,9 +99,9 @@ def Window(frame_len_s,fs,Window_Type,isshow_fig=False):
     '''
     三种窗函数
     -------
-    hamming
-    hanning
-    blackman
+    `hamming`
+    `hanning`
+    `blackman`
     '''
     if Window_Type =='hamming':
         window = np.hamming(int(round(frame_len_s * fs)))
@@ -115,14 +123,27 @@ def Window(frame_len_s,fs,Window_Type,isshow_fig=False):
 
 
 
-def stft(frame_sig, nfft=512 ,fs=8000):
+def stft(frame_sig, nfft=512 ,fs=8000,isshow_fig = False):
     """
-    :param frame_sig: 分帧后的信号
-    :param nfft: fft点数
-    :return: 返回分帧信号的功率谱
-    np.fft.fft vs np.fft.rfft
-    fft 返回 nfft
-    rfft 返回 nfft // 2 + 1，即rfft仅返回有效部分
+    短时傅里叶变换
+    ---------------
+    >>> stft(frame_sig,512,8000)
+    >>> return frame_pow
+    
+    Parameters
+    ---------------
+    `frame_sig`: 分帧后的信号
+    `nfft`: fft点数
+    `fs`: 采样率
+    `isshow_fig`:显示第一帧的stft图像
+    
+    说明
+    ---------------
+    >>> np.fft.fft vs np.fft.rfft
+    >>> np.fft.fft
+    >>>     return nfft
+    >>> np.fft.rfft
+    >>>     return nfft/2 + 1
     """
     frame_spec = np.fft.rfft(frame_sig, nfft)
     # 幅度谱
@@ -132,32 +153,34 @@ def stft(frame_sig, nfft=512 ,fs=8000):
     frame_mag = np.abs(frame_spec)
     # 功率谱
     frame_pow = (frame_mag ** 2) * 1.0 / nfft
-    # if isshow_fig:
-    #     plt.figure(figsize=(10, 5))
-    #     plt.rcParams['font.sans-serif']=['SimHei']
-    #     plt.rcParams['axes.unicode_minus']=False
-    #     plt.plot(fhz,frame_pow[0])
-    #     plt.grid(True)
-    #     plt.xlabel('F/Hz')
-    #     plt.ylabel('功率谱')
-    #     plt.title('短时傅里叶变换')
-    #     plt.show()
+    if isshow_fig:
+        plt.figure(figsize=(10, 5))
+        plt.rcParams['font.sans-serif']=['SimHei']
+        plt.rcParams['axes.unicode_minus']=False
+        plt.plot(fhz,frame_pow[0])
+        plt.grid(True)
+        plt.xlabel('F/Hz')
+        plt.ylabel('功率谱')
+        plt.title('短时傅里叶变换')
+        plt.show()
     return frame_pow
 
 
 def mel_filter(frame_pow, fs, n_filter, nfft, mfcc_Dimen = 12,isshow_fig = False):
     '''
-    Parameter
-    ------------
-    mel 滤波器系数计算
-    frame_pow: 分帧信号功率谱
-    fs: 采样率 hz
-    n_filter: 滤波器个数
-    nfft: fft点数
+    mel滤波器系数计算
+    ----------------
+    >>> mel_filter(frame_pow,fs=8000,n_filter=15,nfft=512,mfcc_Dimen = 13)
+    >>>     return filter_bank,mfcc,Mel_Filters
     
-    return: 
+    Parameters
     ------------
-    Filter Bank 特征和Mel特征
+    `frame_pow`:  分帧信号功率谱
+    `fs`:         采样率 hz
+    `n_filter`:   滤波器个数
+    `nfft`:       fft点数,通常为512
+    `mfcc_Dimenson`: 取多少DCT系数，通常为12-13
+
     '''
     mel_min = 0     # 最低mel值
     mel_max = 2595 * np.log10(1 + fs / 2.0 / 700)               # 最高mel值，最大信号频率为 fs/2
@@ -194,24 +217,68 @@ def mel_filter(frame_pow, fs, n_filter, nfft, mfcc_Dimen = 12,isshow_fig = False
     # 取对数
     filter_banks = 20 * np.log10(filter_banks)  # dB
     # 求取MFCC特征
-    mfcc = dct(filter_banks, type=2,axis=1, norm='ortho')[:, 1:(mfcc_Dimen+1)]
-    return filter_banks.T,mfcc.T
+    mfcc = dct(filter_banks, type=2,axis=1, norm='ortho')[:, 1:mfcc_Dimen+1]
+    return filter_banks.T,mfcc.T,fbank
 
 
-def Dynamic_Feature(mfcc):
+def Dynamic_Feature(mfcc,cutframe = True):
     '''
     动态特征提取
     -----------
-    将MFCC进行一阶、二阶差分运算，构成动态特征
+    包含升倒谱系数;三阶差分运算
+
+    (1)提升倒谱系数可以提高在噪声环境下的识别效果
+    >>> Dynamic_Feature(mfcc)  # mfcc [] 
+    >>>     return mfcc_final 
     
-    Parameter
+    (2)将经过升倒谱后的MFCC进行一阶、二阶差分运算、三阶差分运算，构成动态特征
+    自动切除前后两帧
+    
+    Parameters
     -----------
-    mfcc通常为[12,feature_num]的行向量
+    `mfcc`：通常为[MFCC,feature_num]的行向量
+    `cutframe`：是否切除前后各两帧
+    ''' 
+    J = mfcc.T
+    K = []
+    for i in range(J.shape[1]):
+        K.append(1+ 22/2*np.sin(np.pi*i/22))
+    K = K/np.max(K)
+    feat = np.zeros((J.shape[0],J.shape[1]))
+
+    for i in range(J.shape[0]):
+        for j in range(J.shape[1]):
+            feat[i][j] = J[i][j]*K[j]
+    
+    '''--------3阶差分运算--------
+        一阶差分
     '''
-    delta_mfcc = lf.delta(mfcc,axis=1)
-    delta2_mfcc = lf.delta(mfcc,order=2,axis=1)
-    mfccs_feature = np.concatenate((mfcc,delta_mfcc,delta2_mfcc))
-    return mfccs_feature
+    dtfeat = np.zeros(feat.shape)
+    for i in range(2,dtfeat.shape[0]-2):
+        dtfeat[i,:] = -2*feat[i-2,:]-feat[i-1,:]+feat[i+1,:]+2*feat[i+2,:]
+    dtfeat = dtfeat/10
+    
+    '''二阶差分'''
+    dttfeat = np.zeros(feat.shape)
+    for i in range(2,dttfeat.shape[0]-2):
+        dttfeat[i,:] = -2*dtfeat[i-2,:]-dtfeat[i-1,:]+dtfeat[i+1,:]+2*dtfeat[i+2,:]
+    dttfeat = dttfeat/10
+    
+    '''二阶差分'''
+    dtttfeat = np.zeros(feat.shape)
+    for i in range(2,dtttfeat.shape[0]-2):
+        dtttfeat[i,:] = -2*dttfeat[i-2,:]-dttfeat[i-1,:]+dttfeat[i+1,:]+2*dttfeat[i+2,:]
+    dtttfeat = dtttfeat/10   
+    
+    '''拼接'''
+    mfcc_final = np.concatenate((feat.T,dtfeat.T,dttfeat.T,dtttfeat.T))
+    
+    '''是否去掉前后各两帧'''
+    if cutframe:
+        mfcc_final = mfcc_final[2:-2,:]
+        return mfcc_final
+    else:
+        return mfcc_final
 
 
 def CMVN(feature):
@@ -221,8 +288,13 @@ def CMVN(feature):
     feat = (feature - np.mean(feature,axis=1)[:,np.newaxis])/(np.std(feature,axis=1)+np.finfo(float).eps)[:,np.newaxis]
     return feat
 
+
 '''-----------绘图----------'''
 def plot_time(sig, fs,title):
+    '''
+    绘制时间图
+    -----------
+    '''
     time = np.arange(0, len(sig)) * (1.0 / fs)
     plt.figure(figsize=(10, 5))
     plt.plot(time, sig)
@@ -235,8 +307,12 @@ def plot_time(sig, fs,title):
     plt.show()
     
 def plot_freq(sig, sample_rate,title='频域图', nfft=512):
+    '''
+    绘制频率图
+    ------------
+    '''
     xf = np.fft.rfft(sig, nfft)
-    print('Number of fft:',(len(xf)-1)*2)     # 257个点
+    print('Number of fft:',(len(xf)-1)*2)      # 257个点
     xfp = -20 * np.log10(np.abs(xf))           # np.clip(np.abs(xf), 1e-20, 1e100)
     freqs = np.linspace(0, int(sample_rate/2), int(nfft/2) + 1)
     plt.figure(figsize=(10, 5))
@@ -250,6 +326,10 @@ def plot_freq(sig, sample_rate,title='频域图', nfft=512):
     plt.show()
 
 def plot_spectrogram(spec,ylabel,title):
+    '''
+    绘制语谱图
+    ------------
+    '''
     fig = plt.figure(figsize=(10, 5))
     heatmap = plt.pcolor(spec)
     fig.colorbar(mappable=heatmap)

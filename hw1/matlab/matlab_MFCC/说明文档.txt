@@ -1,0 +1,8 @@
+mfcccmvn.m 运行文件
+
+data.mat变量说明
+mfcc：mfcc提取特征，fbank含15组三角窗，大小48584*15；
+dtfeat：mfcc前13个一阶差分，大小48584*13；
+dttfeat：dtfeat上的一阶差分，大小48584*13；
+dtttfeat：dttfeat上的一阶差分，大小48584*13；
+cmvn：含mfcc前13个、dtfeat、dttfeat和dtttfeat，并进行离线CMVN，大小48584*52；

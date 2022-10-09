@@ -4,7 +4,6 @@ from scipy.fftpack import dct
 import matplotlib.pyplot as plt
 
 
-
 '''-----------预处理-------------'''
 def readAudio(wav_file,iscut) :
     '''    
@@ -94,7 +93,6 @@ def enframe(sig=np.array([]),frame_len_s=0.025, frame_shift_s=0.01, fs=8000):
     # print(frame_sig.shape)
     return frame_sig  
 
-
 def Window(frame_len_s,fs,Window_Type,isshow_fig=False):
     '''
     三种窗函数
@@ -120,8 +118,6 @@ def Window(frame_len_s,fs,Window_Type,isshow_fig=False):
         plt.title(Window_Type)
         plt.show()
     return window
-
-
 
 def stft(frame_sig, nfft=512 ,fs=8000,isshow_fig = False):
     """
@@ -164,7 +160,6 @@ def stft(frame_sig, nfft=512 ,fs=8000,isshow_fig = False):
         plt.title('短时傅里叶变换')
         plt.show()
     return frame_pow
-
 
 def mel_filter(frame_pow, fs, n_filter, nfft, mfcc_Dimen = 12,isshow_fig = False):
     '''
@@ -219,7 +214,6 @@ def mel_filter(frame_pow, fs, n_filter, nfft, mfcc_Dimen = 12,isshow_fig = False
     # 求取MFCC特征
     mfcc = dct(filter_banks, type=2,axis=1, norm='ortho')[:, 1:mfcc_Dimen+1]
     return filter_banks.T,mfcc.T,fbank
-
 
 def Dynamic_Feature(mfcc,cutframe = True):
     '''
@@ -280,14 +274,12 @@ def Dynamic_Feature(mfcc,cutframe = True):
     else:
         return mfcc_final
 
-
 def CMVN(feature):
     '''
     倒谱均值方差归一化
     ''' 
     feat = (feature - np.mean(feature,axis=1)[:,np.newaxis])/(np.std(feature,axis=1)+np.finfo(float).eps)[:,np.newaxis]
     return feat
-
 
 '''-----------绘图----------'''
 def plot_time(sig, fs,title):

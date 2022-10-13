@@ -1,16 +1,16 @@
 import numpy as np
+import matplotlib.pyplot as plt
 from mfcc import *
-
+import librosa
 
 if __name__ =='__main__':
 
     '''--------读取数据--------
        截取5s的音频    
     '''
-    fs, sig = readAudio('./PHONE_001.wav',5)
+    fs, sig = readAudio('./untitled.wav',False)
     # plot_time(sig, fs,'原始信号')
     # plot_freq(sig, fs,'原始信号频域图')
-    
     '''--------预处理--------'''
     '''(1)预加重'''
     alpha = 0.97
@@ -34,7 +34,8 @@ if __name__ =='__main__':
     '''--------stft--------'''
     N = 512
     frame_pow = stft(frame_sig_win, N ,fs)
-    # plot_freq(frame_pow[0],fs,'第一帧STFT的频谱')
+    plot_spectrogram(frame_pow, 'MFCC系数','MFCC 特征')
+    plot_freq(frame_pow[0],fs,'第一帧STFT的频谱')
     
     '''--------Mel 滤波器组--------'''
     '''Filter Bank 特征和MFCC特征提取'''    

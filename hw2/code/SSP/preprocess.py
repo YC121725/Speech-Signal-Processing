@@ -19,6 +19,14 @@ def readAudio(wav_file,iscut=False) :
         sig = sig
     return fs,sig
 
+def writeAudio(sig,fs,voiceseg,frame_shift_s=0.01,frame_len_s=0.025):
+    
+    for i in range(len(voiceseg)):
+        begin = np.round((voiceseg[i]['begin'] * frame_shift_s+frame_len_s/2)*fs)
+        end = np.round((voiceseg[i]['end'] * frame_shift_s+frame_len_s/2)*fs)
+        wavfile.write('./audio/PHONE_001_{}_{}.wav'.format(voiceseg[i]['begin']*10,voiceseg[i]['end']*10),
+                    fs,sig[int(begin):int(end)].astype(np.int16))
+
 '''-----------特征提取-------------'''
 def enframe(sig=np.array([]),frame_len_s=0.025, frame_shift_s=0.01, fs=8000):
     '''

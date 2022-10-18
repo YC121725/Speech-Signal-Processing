@@ -4,6 +4,11 @@ import pandas as pd
 def Gnoisegen(signal,SNR):
     '''
     叠加高斯白噪声到语音信号x中
+    
+    return
+    ----------
+    `y`
+    `noise`
     '''
     noise = np.random.randn(*signal.shape)
     noise = noise-np.mean(noise)
@@ -120,7 +125,7 @@ def findSegment(express):
     
     return soundSegment
 
-def VAD(dst1, T1 ,T2):
+def VAD_H(dst1, T1 ,T2):
     '''
     VAD
     ----------
@@ -129,7 +134,7 @@ def VAD(dst1, T1 ,T2):
     Parameters
     ---------
     #### input:
-    `dst1`:     短时能量
+    `dst1`:     短时谱熵
     `T1`:       阈值1
     `T2`:       阈值2
     #### return
@@ -233,11 +238,127 @@ def VAD(dst1, T1 ,T2):
     vs1= len(voiceseg)
     return voiceseg,vs1,SF,NF
 
+def VAD_E(dst1, T1 ,T2):
+    '''
+    VAD_E
+    ----------
+    对短时能量进行双门限语音端点检测
+    
+    Parameters
+    ---------
+    #### input:
+    `dst1`:     短时能量
+    `T1`:       阈值1
+    `T2`:       阈值2
+    #### return
+    
+    
+    算法策略
+    -------------
+    (1)在
+    
+    '''
+    fn = len(dst1)                           # 帧数
+
+    maxsilence = 6
+    minlen     = 5
+    status     = 0
+    
+    count   = [0]
+    silence = [0]
+    x1 = [0]
+    x2 = [0]
+    
+    # 开始端点检测
+    xn = 0
+    for n in range(fn):
+        if status==1 or status ==0:
+            if dst1[n] > T2:
+                # print('State=1,进入语音段')
+                x1[xn] = max([n - count[xn]-1,1])
+                status = 2
+                silence[xn] = 0
+                count[xn] = count[xn]+1
+            elif dst1[n] > T1:
+                # print('State=1,可能处于语音段')
+                status = 1
+                count[xn] = count[xn]+1
+            else:
+                # print('State=1,静音状态')
+                status = 0
+                count[xn] = 0
+                x1[xn] = 0
+                x2[xn] = 0
+        
+        if status == 2:
+            if dst1[n] > T1:
+                # print('State=2,保持在语音段')
+                count[xn] = count[xn]+1
+                silence[xn] = 0
+            else:
+                # print('State=2,语音将结束!')
+                silence[xn] = silence[xn] + 1
+                if silence[xn] < maxsilence:
+                    count[xn] = count[xn] + 1
+                elif count[xn] < minlen:
+                    status = 0
+                    silence[xn] = 0
+                    count[xn] = 0
+                else:
+                    # print('进入State3 语音结束')
+                    status = 3
+                    x2[xn] = x1[xn] + count[xn]
+        if status == 3:
+            # print('State=3,语音结束！')
+            status = 0
+            xn = xn +1
+            count.append(0)
+            silence.append(0)
+            x1.append(0)
+            x2.append(0)
+            
+    while x1.count(0):
+        x1.remove(0)
+    el = len(x1)
+    
+    x2 = x2[0:el]
+    
+    if x1[el-1] == 0:
+        el = el - 1
+    if el==0:
+        return
+    if x2[el-1]==0:
+        x2[el-1] = fn
+    # print('x1 = ',x1)
+    # print('x2 = ',x2)   
+    
+    SF = np.zeros((1,fn))
+    SF = SF.reshape(SF.size)
+    NF = np.ones((1,fn))
+    NF = NF.reshape(NF.size)
+
+    for i in range(el):
+        zero = np.zeros((1,int(x2[i])-int(x1[i])))
+        one  = np.ones((1,int(x2[i])-int(x1[i])))
+        zero = zero.reshape(zero.size)
+        one  = one.reshape(one.size)
+        SF[int(x1[i]):int(x2[i])] = one
+        NF[int(x1[i]):int(x2[i])] = zero
+    SF = list(SF)
+    
+    speechIndex = find(SF,'=',1)
+    voiceseg = findSegment(speechIndex)
+    vs1= len(voiceseg)
+    return voiceseg,vs1,SF,NF
+
+
 def spliting(voiceseg):
     '''
-    将间隔低于 20ms / 20帧 的一段去除默认为噪声干扰去除
-    将间隔低于 10ms / 10帧 的两端拼接在一块
+    拼接函数
     -----------------------------
+    将duration低于 20ms / 20帧 的一段去除默认为噪声干扰去除
+    将两段音频间隔低于 10ms / 10帧 的两端拼接在一块
+
     '''    
     label = pd.DataFrame(voiceseg)
     # print('调整前：',label)       

@@ -3,8 +3,7 @@ from scipy.fftpack import dct
 import matplotlib.pyplot as plt
 
 """
-包含MFCC各种处理函数
-
+Homework1中涉及的MFCC处理的函数，在此进行汇总，不涉及Homework2
 """
 def stft(frame_sig, nfft=512 ,fs=8000,isshow_fig = False):
     """

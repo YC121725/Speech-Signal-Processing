@@ -1,6 +1,5 @@
 from SSP.vad import*
 from SSP.preprocess import *
-from SSP.mfcc import *
 from SSP.sspplot import *
 import numpy as np
 import matplotlib.pyplot as plt
@@ -15,8 +14,7 @@ eps = np.finfo(float).eps                   # 小值
 
 
 '''----------------预处理----------------'''
-fs, sig = readAudio('./PHONE_001.wav')   
-print(len(sig))   
+fs, sig = readAudio('./hw2/PHONE_001.wav',iscut=False)    
 sig_ = sig - np.mean(sig)                    # 消除直流分量
 x = sig_/np.max(np.abs(sig_))                # 幅值归一化
 signal ,_ = Gnoisegen(x,SNR)                 # 将信号添加高斯噪声
@@ -30,10 +28,14 @@ frame_num = frame_sig_win.shape[1]                    # 帧数
 km = int (np.floor(frame_len_s*fs/8))                 # 子带个数 200/8 = 25 
 K = 0.5
 
+
 '''-------------短时能量-------------'''
 En = []
 for i in range(frame_num):
     En.append(10*np.log10(sum(frame_sig_win[:,i] * frame_sig_win[:,i])))
+
+En = multimidfilter(En,10)
+
 
 '''------------计算过零率------------'''
 '''
@@ -48,6 +50,9 @@ for i in range(frame_num):
         if z[j]*z[j+1]<0:
             zcr[i] = zcr[i]+1
 
+zcr_ = multimidfilter(zcr,10)
+    
+
 '''--------------计算短时幅度谱熵--------------'''
 
 df = 1/frame_len_s                           # 谱分辨率 == 40 1个点代表40Hz
@@ -59,39 +64,44 @@ Eb = []
 Hb = []
 
 for i in range(frame_num):
-    '''
-    (1)每一帧 STFT 提取幅度谱
-    '''
     A = np.abs(np.fft.rfft(frame_sig_win[:,i]))       # 取来一帧数据FFT后取幅值 RFFT
-    E = A[fx1+1:fx2-1]**2                             # 只取250~3500Hz之间的分量 计算能量
-    P = E/np.sum(E)  
-    
-    # 幅值归一化
+    E = A[fx1+1:fx2-1]**2                             # 只取250~3500Hz之间的分量 计算能量 
     for m in range(km):
         Eb.append(np.sum(E[4*m-3:4*m]))
     Eb = np.array(Eb)
     prob = (Eb+K)/np.sum(Eb+K)
-
     Hb.append(-np.sum(prob*np.log(prob+eps)))
-    Eb = []                        
+    Eb = []
+# Enm = multimidfilter(Hb,10)
 
-Enm = multimidfilter(Hb,10)
 
-''' ----------- VAD检测 --------------'''
-NIS = np.fix((IS-frame_len_s)/frame_shift_s*fs+1)     # 求前导无话段帧数
-Me = np.min(Enm)
-eth = np.max(Enm[0:int(NIS)])
-Det = eth - Me
+''' ----------- 采用谱熵VAD检测 --------------'''
+# NIS = np.fix((IS-frame_len_s)/frame_shift_s*fs+1)     # 求前导无话段帧数
+# Me = np.min(Enm)
+# eth = np.max(Enm[0:int(NIS)])
+# Det = eth - Me
 
-T1 = 0.99*Det + Me
-T2 = 0.96*Det + Me
+# T1 = 0.99*Det + Me
+# T2 = 0.96*Det + Me
 
-time = np.linspace(0,len(x),len(x))/fs      # 时间刻度
-frameTime = frame2Time(frame_num,frame_len_s,frame_shift_s)
-line1 = np.linspace(T1,T1,len(frameTime))
-line2 = np.linspace(T2,T2,len(frameTime))
+# time = np.linspace(0,len(x),len(x))/fs                # 时间刻度
+# frameTime = frame2Time(frame_num,frame_len_s,frame_shift_s)
+# line1 = np.linspace(T1,T1,len(frameTime))
+# line2 = np.linspace(T2,T2,len(frameTime))
 
-voiceseg,vsl,SF,NF =  VAD(Enm,T1,T2)
+# voiceseg,vsl,SF,NF =  VAD_H(Enm,T1,T2)
+
+# voiceseg = spliting(voiceseg)
+# print('length(voiceseg):',len(voiceseg))
+
+
+''' -----------采用能量 VAD检测 --------------'''
+# NIS_ = np.fix((IS-frame_len_s)/frame_shift_s*fs+1)     # 求前导无话段帧数
+Me = np.min(En)
+T1 = 0.9*Me
+T2 = T1+0.6
+
+voiceseg,vsl,SF,NF =  VAD_E(En,T1,T2)
 
 voiceseg = spliting(voiceseg)
 print('length(voiceseg):',len(voiceseg))
@@ -99,34 +109,37 @@ print('length(voiceseg):',len(voiceseg))
 
 ''' ----------- 绘图 --------------'''
 
+time = np.linspace(0,len(x),len(x))/fs                 # 时间刻度
+frameTime = frame2Time(frame_num,frame_len_s,frame_shift_s)
+line1 = np.linspace(T1,T1,len(frameTime))
+line2 = np.linspace(T2,T2,len(frameTime))
+
 plt.rcParams['font.sans-serif']=['SimHei']
 plt.rcParams['axes.unicode_minus']=False
 plt.subplot(3,1,1)
 plt.plot(time,x)
-plt.title('时域波形图')
+plt.title('时域图')
 plt.xlabel('时间/s')
 plt.ylabel('幅值')
 
 plt.subplot(3,1,2)
-plt.plot(frameTime,Hb)
+plt.plot(frameTime,En)
 plt.plot(frameTime,line1,'k--')
 plt.plot(frameTime,line2,'k-')
-plt.title('短时改进子带谱熵')
+plt.title('短时能量')
 plt.xlabel('时间/s')
 plt.ylabel('谱熵值')
 
-# plt.subplot(3,1,3)
-# plt.plot(frameTime,En)
-# plt.title('短时能量')
-# plt.xlabel('时间/s')
-# plt.ylabel('能量/dB')
-
 plt.subplot(3,1,3)
-plt.plot(frameTime,zcr)
-plt.title('过零率')
+plt.plot(frameTime,Hb)
+plt.title('改进短时幅度谱熵')
 plt.xlabel('时间/s')
-plt.ylabel('过零率')
+plt.ylabel('谱熵值')
+
 plt.subplots_adjust(hspace=0.7)
+
+
+'''--------------绘制直线图--------------'''
 
 begin = np.ones((1,len(voiceseg)))
 begin = list(begin.reshape(begin.size))
@@ -137,6 +150,7 @@ end = list(end.reshape(end.size))
 for i in range(len(voiceseg)):
     begin[i] = voiceseg[i]['begin']
     end[i] = voiceseg[i]['end']
+
 
 x1 , y1 = axvline(begin,[-int(max(x)),int(max(x))])
 x2 , y2 = axvline(end,[-int(max(x)),int(max(x))])
@@ -156,18 +170,16 @@ for i in range(len(x1)):
     plt.plot(x2[i] * frame_shift_s , y2 ,'k--')
     
     plt.subplot(3,1,2)
-    plt.plot(Hbx1[i] * frame_shift_s , Hby1 ,'r--')
-    plt.plot(Hbx2[i] * frame_shift_s , Hby2 ,'k--')
-    
-    # plt.subplot(3,1,3)
-    # plt.plot(Enx1[i] * frame_shift_s , Eny1 ,'r--')
-    # plt.plot(Enx2[i] * frame_shift_s , Eny2 ,'k--')
+    plt.plot(Enx1[i] * frame_shift_s , Eny1 ,'r--')
+    plt.plot(Enx2[i] * frame_shift_s , Eny2 ,'k--')
     
     plt.subplot(3,1,3)
-    plt.plot(zcrx1[i] * frame_shift_s , zcry1 ,'r--')
-    plt.plot(zcrx2[i] * frame_shift_s , zcry2 ,'k--')
+    plt.plot(Hbx1[i] * frame_shift_s , Hby1 ,'r--')
+    plt.plot(Hbx2[i] * frame_shift_s , Hby2 ,'k--')
+
 plt.show()
 
-'''    切分音频    '''
+'''--------------切分音频--------------'''
 
-writeAudio(sig,fs,voiceseg,frame_shift_s=0.01,frame_len_s=0.025)
+writeAudio('hw2/audio',sig,fs,voiceseg,frame_shift_s=0.01,frame_len_s=0.025)
+

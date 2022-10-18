@@ -1,7 +1,6 @@
 import numpy as np
 import matplotlib.pyplot as plt
 from mfcc import *
-import librosa
 
 if __name__ =='__main__':
 
